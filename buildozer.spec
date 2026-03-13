@@ -32,7 +32,7 @@ version = 1.0
 
 # (list) Application requirements
 # comma separated e.g. requirements = sqlite3,kivy
-requirements = python3,kivy,arabic_reshaper,python-bidi,six
+requirements = python3,kivy,arabic_reshaper,python-bidi,six,pyjnius
 
 # (str) Custom source folders for requirements
 # сад allow to include custom implementations of python package
@@ -51,7 +51,7 @@ orientation = portrait
 android.permissions = WRITE_EXTERNAL_STORAGE, READ_EXTERNAL_STORAGE, MANAGE_EXTERNAL_STORAGE
 
 # (int) Android API to use
-android.api = 31
+android.api = 33
 
 # (int) Minimum API your APK will support.
 android.minapi = 21
