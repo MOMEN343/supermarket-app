@@ -29,10 +29,6 @@ from kivy.clock           import Clock
 
 import database as db
 
-# ─── تهيئة قاعدة البيانات ─────────────────────────────────
-db.init_db()
-db.seed_sample_data()
-
 # ─── الخطوط ───────────────────────────────────────────────
 BASE_DIR  = os.path.dirname(os.path.abspath(__file__))
 
@@ -275,6 +271,107 @@ class AddCustomerPopup(Popup):
         self.on_done()
 
 # ═══════════════════════════════════════════════════════════
+#  Popup: تعديل زبون
+# ═══════════════════════════════════════════════════════════
+class EditCustomerPopup(Popup):
+    def __init__(self, customer, on_done, **kw):
+        super().__init__(
+            title='', separator_height=0,
+            background='', background_color=(0,0,0,0),
+            size_hint=(0.92, None), height=dp(280),
+            **kw
+        )
+        self.on_done = on_done
+        self.customer = customer
+
+        box = Card(bg=(0.12,0.10,0.24,1), radius=20,
+                   orientation='vertical',
+                   padding=[dp(20), dp(20)], spacing=dp(14))
+
+        box.add_widget(Label(
+            text=ar('تعديل بيانات الزبون'),
+            font_name='Cairo', font_size=sp(20), bold=True,
+            color=C['white'], size_hint_y=None, height=dp(34),
+        ))
+
+        self.name_in = make_input('اسم الزبون *', size_hint_y=None, height=dp(46))
+        
+        self.phone_in = make_input('رقم الهاتف', size_hint_y=None, height=dp(46))
+        if customer.get('phone'):
+            self.phone_in.text = customer['phone']
+
+        box.add_widget(self.name_in)
+        box.add_widget(self.phone_in)
+
+        # أزرار الحفظ والإلغاء
+        btn_row = BoxLayout(orientation='horizontal',
+                            size_hint_y=None, height=dp(48), spacing=dp(10))
+        cancel = Btn(text=ar('الغاء'), bg=C['dim'], radius=12, font_size=sp(15))
+        cancel.bind(on_release=lambda *_: self.dismiss())
+        save = Btn(text=ar('حفظ تغييرات'), bg=C['blue'], radius=12, font_size=sp(15))
+        save.bind(on_release=self._save)
+        btn_row.add_widget(cancel)
+        btn_row.add_widget(save)
+        box.add_widget(btn_row)
+
+        self.content = box
+
+    def _save(self, *_):
+        name = self.name_in.raw_text.strip() if hasattr(self.name_in, 'raw_text') and self.name_in.raw_text.strip() else self.name_in.text.strip()
+        if not name:
+            name = self.customer['name'] # الإبقاء على الاسم القديم إذا تم تركه فارغاً
+        phone = self.phone_in.text.strip()
+        db.update_customer(self.customer['id'], name, phone, self.customer.get('status', 'عادي'))
+        self.dismiss()
+        self.on_done()
+
+# ═══════════════════════════════════════════════════════════
+#  Popup: تأكيد الحذف
+# ═══════════════════════════════════════════════════════════
+class ConfirmDeletePopup(Popup):
+    def __init__(self, customer, on_done, **kw):
+        super().__init__(
+            title='', separator_height=0,
+            background='', background_color=(0,0,0,0),
+            size_hint=(0.85, None), height=dp(200),
+            **kw
+        )
+        self.on_done = on_done
+        self.customer = customer
+
+        box = Card(bg=(0.12,0.10,0.24,1), radius=20,
+                   orientation='vertical',
+                   padding=[dp(20), dp(20)], spacing=dp(14))
+
+        box.add_widget(Label(
+            text=ar('هل أنت متأكد من الحذف؟'),
+            font_name='Cairo', font_size=sp(18), bold=True,
+            color=C['red'], size_hint_y=None, height=dp(34),
+        ))
+        box.add_widget(Label(
+            text=ar('سيتم مسح الزبون وكافة معاملاته للأبد.'),
+            font_name='Cairo', font_size=sp(13), color=C['gray'],
+            halign='center', text_size=(dp(280), None)
+        ))
+
+        btn_row = BoxLayout(orientation='horizontal',
+                            size_hint_y=None, height=dp(48), spacing=dp(10))
+        cancel = Btn(text=ar('الغاء'), bg=C['dim'], radius=12, font_size=sp(15))
+        cancel.bind(on_release=lambda *_: self.dismiss())
+        confirm = Btn(text=ar('نعم، احذف!'), bg=C['red'], radius=12, font_size=sp(15))
+        confirm.bind(on_release=self._delete)
+        btn_row.add_widget(cancel)
+        btn_row.add_widget(confirm)
+        box.add_widget(btn_row)
+
+        self.content = box
+
+    def _delete(self, *_):
+        db.delete_customer(self.customer['id'])
+        self.dismiss()
+        self.on_done()
+
+# ═══════════════════════════════════════════════════════════
 #  Popup: تسجيل معاملة (دفع / دين / مشترى)
 # ═══════════════════════════════════════════════════════════
 class TransactionPopup(Popup):
@@ -417,6 +514,16 @@ class DetailScreen(BoxLayout):
             act_row.add_widget(b)
         box.add_widget(act_row)
 
+        # أزرار التعديل والحذف
+        manage_row = BoxLayout(orientation='horizontal', size_hint_y=None, height=dp(40), spacing=dp(8))
+        btn_del = Btn(text=ar('حذف الزبون'), bg=C['dim'], radius=8, font_size=sp(13), color=C['red'])
+        btn_del.bind(on_release=self._ask_delete)
+        btn_edit = Btn(text=ar('تعديل البيانات'), bg=C['dim'], radius=8, font_size=sp(13))
+        btn_edit.bind(on_release=self._open_edit)
+        manage_row.add_widget(btn_del)
+        manage_row.add_widget(btn_edit)
+        box.add_widget(manage_row)
+
         # سجل المعاملات
         box.add_widget(section_title('سجل المعاملات'))
 
@@ -466,6 +573,22 @@ class DetailScreen(BoxLayout):
             tx_type=tx_type,
             on_done=self._build,
         )
+        popup.open()
+
+    def _open_edit(self, *_):
+        popup = EditCustomerPopup(customer=self.customer, on_done=self._on_edit_done)
+        popup.open()
+
+    def _on_edit_done(self):
+        # تحديث بيانات الزبون من قاعدة البيانات لتحديث الواجهة
+        customers = db.get_all_customers()
+        updated = next((c for c in customers if c['id'] == self.customer['id']), None)
+        if updated:
+            self.customer = updated
+            self._build()
+
+    def _ask_delete(self, *_):
+        popup = ConfirmDeletePopup(customer=self.customer, on_done=self.on_back)
         popup.open()
 
 # ═══════════════════════════════════════════════════════════
@@ -835,9 +958,12 @@ class ReportsScreen(BoxLayout):
         self.files_box.clear_widgets()
         import glob
         import os
+        from kivy.app import App
+        
+        app_dir = App.get_running_app().user_data_dir
         
         # جلب التقارير وإعادة ترتيبها الأحدث أولاً بواجهات عربية
-        files = glob.glob("تقرير_*.xls") + glob.glob("تقرير_تلقائي_*.xls")
+        files = glob.glob(os.path.join(app_dir, "تقرير_*.xls")) + glob.glob(os.path.join(app_dir, "تقرير_تلقائي_*.xls"))
         files = sorted(list(set(files)), key=os.path.getmtime, reverse=True)
         
         if not files:
@@ -856,9 +982,9 @@ class ReportsScreen(BoxLayout):
             open_btn.bind(on_release=lambda inst, fname=f_name: self._open_file(fname))
             row.add_widget(open_btn)
 
-            # اسم الملف (على اليمين)
-            # بما أن الملف أصلاً يحمل اسماً عربياً، نعرضه كما هو (مع التشكيل للعرض)
-            display_name = f_name.replace('.xls', '')
+            # اسم الملف للمستخدم لكن نحتفظ بالمسار الكامل في الزر
+            filename_only = os.path.basename(f_name)
+            display_name = filename_only.replace('.xls', '')
             lbl = Label(text=ar(display_name), font_name='Cairo', font_size=sp(14), 
                         color=C['white'], halign='right', valign='middle')
             lbl.bind(size=lbl.setter('text_size'))
@@ -867,9 +993,13 @@ class ReportsScreen(BoxLayout):
             self.files_box.add_widget(row)
 
     def _export(self, *_):
+        import os
+        from kivy.app import App
         try:
             # ملف باسم عربي وتاريخ ليظل محفوظاً
-            filename = f"تقرير_{datetime.now().strftime('%Y-%m-%d_%H-%M')}.xls"
+            app_dir = App.get_running_app().user_data_dir
+            filename = os.path.join(app_dir, f"تقرير_{datetime.now().strftime('%Y-%m-%d_%H-%M')}.xls")
+            
             export_excel_file(filename)
             self.status_lbl.text = ar(f"تم تصدير التقرير بنجاح")
             self.status_lbl.color = C['green']
@@ -980,11 +1110,19 @@ class SupermarketApp(App):
     def build(self):
         self.title = 'سوبرماركت زعرب'
         
+        # ─── تهيئة قاعدة البيانات في مسار آمن ──────────────────
+        # هذا يضمن أن البيانات لا تُمسح عند تحديث الـ APK وتحفظ في الذاكرة الدائمة
+        safe_db_path = os.path.join(self.user_data_dir, 'zarab.db')
+        db.set_db_path(safe_db_path)
+        db.init_db()
+        db.seed_sample_data()
+        
         # إنشاء التقرير التلقائي فقط في أول يوم من كل شهر (كجرد للشهر السابق)
         try:
             now = datetime.now()
             if now.day == 1:
-                auto_filename = f"تقرير_تلقائي_شهر_{now.month-1 if now.month > 1 else 12}_{now.year}.xls"
+                # يفضل حفظ التقارير في مجلد عام للوصول إليها مثل الـ Downloads، ولكن حالياً نضعها بجانب قاعدة البيانات أو في المجلد الفعال
+                auto_filename = os.path.join(self.user_data_dir, f"تقرير_تلقائي_شهر_{now.month-1 if now.month > 1 else 12}_{now.year}.xls")
                 if not os.path.exists(auto_filename):
                     export_excel_file(auto_filename)
         except:

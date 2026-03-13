@@ -8,6 +8,11 @@ from datetime import datetime
 
 DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'zarab.db')
 
+def set_db_path(path):
+    """تحديد المسار الآمن لقاعدة البيانات"""
+    global DB_PATH
+    DB_PATH = path
+
 def get_conn():
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
