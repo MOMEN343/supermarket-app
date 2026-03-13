@@ -5,10 +5,12 @@ from bidi.algorithm import get_display
 from datetime import datetime
 import re
 
-from kivy.config import Config
-Config.set('graphics', 'width',  '430')
-Config.set('graphics', 'height', '700')
-Config.set('graphics', 'resizable', False)
+from kivy.utils import platform
+if platform not in ('android', 'ios'):
+    from kivy.config import Config
+    Config.set('graphics', 'width',  '430')
+    Config.set('graphics', 'height', '700')
+    Config.set('graphics', 'resizable', False)
 
 from kivy.app import App
 from kivy.uix.boxlayout   import BoxLayout
@@ -877,9 +879,36 @@ class ReportsScreen(BoxLayout):
             self.status_lbl.color = C['red']
 
     def _open_file(self, filename):
-        import subprocess
         import os
-        if os.path.exists(filename):
+        from kivy.utils import platform
+        if not os.path.exists(filename):
+            self.status_lbl.text = ar("الملف غير موجود")
+            return
+
+        if platform == 'android':
+            try:
+                # محاولة فتح الملف عبر Android Intent
+                from jnius import autoclass
+                PythonActivity = autoclass('org.kivy.android.PythonActivity')
+                Intent = autoclass('android.content.Intent')
+                Uri = autoclass('android.net.Uri')
+                File = autoclass('java.io.File')
+                
+                path = os.path.abspath(filename)
+                file = File(path)
+                uri = Uri.fromFile(file)
+                
+                intent = Intent(Intent.ACTION_VIEW)
+                intent.setDataAndType(uri, "application/vnd.ms-excel")
+                intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                
+                PythonActivity.mActivity.startActivity(intent)
+            except Exception as e:
+                # في حال فشل الفتح التلقائي (مثل قيود الصلاحيات)، نظهر اسم الملف للمستخدم ليجده يدوياً
+                self.status_lbl.text = ar(f"محفوظ باسم: {os.path.basename(filename)}")
+                print(f"Android Open Error: {e}")
+        else:
+            import subprocess
             try:
                 os.startfile(filename)
             except:
@@ -955,11 +984,16 @@ class SupermarketApp(App):
         try:
             now = datetime.now()
             if now.day == 1:
-                # إذا كان أول يوم في الشهر، نصدر تقرير بإحصائيات الشهر الذي انتهى للتو
                 auto_filename = f"تقرير_تلقائي_شهر_{now.month-1 if now.month > 1 else 12}_{now.year}.xls"
-                export_excel_file(auto_filename)
+                if not os.path.exists(auto_filename):
+                    export_excel_file(auto_filename)
         except:
             pass
+        
+        # طلب صلاحيات التخزين على أندرويد
+        if platform == 'android':
+            from android.permissions import request_permissions, Permission
+            request_permissions([Permission.WRITE_EXTERNAL_STORAGE, Permission.READ_EXTERNAL_STORAGE])
             
         self.root_widget = Root()
         Window.bind(on_keyboard=self.on_keyboard) # تفعيل التقاط زر العودة (المحلي للجوال)
