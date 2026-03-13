@@ -1,0 +1,25 @@
+# Kivy / Buildozer
+.buildozer/
+bin/
+*.apk
+*.aab
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Database & Reports
+*.db
+*.sqlite3
+*.xls
+*.csv
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Large ZIP files or extra fonts
+*.zip
+fonts/extracted/*/
